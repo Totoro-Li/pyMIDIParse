@@ -3,7 +3,7 @@ import cv2
 if __name__ == '__main__':
     print(cv2.__version__)
     # load image
-    img = cv2.imread('img_sample/screenshot.jpg')
+    img = cv2.imread('../img_sample/screenshot.jpg')
     # detect rectangle
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -30,4 +30,4 @@ if __name__ == '__main__':
     cv2.destroyAllWindows()
 
     # save image
-    cv2.imwrite('img_sample/processed.jpg', img)
+    cv2.imwrite('../img_sample/processed.jpg', img)

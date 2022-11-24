@@ -187,7 +187,9 @@ dmypy.json
 cython_debug/
 
 songs/
-device.ini
+driver/device.ini
 
 *.png
 *.jpg
+
+scripts/

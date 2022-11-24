@@ -7,7 +7,7 @@ def midi_note_to_piano_key(note):
 
 
 if __name__ == "__main__":
-    mid = mido.MidiFile("songs/Chopin - Nocturne op.9 No.2.mid")
+    mid = mido.MidiFile("../songs/Chopin - Nocturne op.9 No.2.mid")
     scores = []  # (time, piano converted note)
     for msg in mid.play():
         if msg.type == "note_on":

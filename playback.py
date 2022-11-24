@@ -1,25 +1,31 @@
+import argparse
 import configparser
-import sys
+import os
 import threading
+import time
 
 import keyboard
 
-from device import DeviceSession
+from driver.device import DeviceSession
+from midi.midi_trans import get_file_choice, get_midi_file_name, process_midi
 
-key_delete = 'delete'
-key_shift = 'shift'
-key_end = 'end'
-key_home = 'home'
+key_p = 'p'
+key_r = 'r'
+key_a = 'a'
+key_z = 'z'
 
 
 class MusicSession(object):
-    # press_callback accepts a list
+    is_playing = True
+    songs_folder = "songs"
+    scripts_folder = "scripts"
+    current_session = None
+    device_session: DeviceSession = None
 
-    is_playing = False
-
-    def __init__(self, music):
+    def __init__(self, script_file):
         super(MusicSession, self).__init__()
-        self.music = music
+        self.music = None
+        self.script_file = script_file
         self.stored_index = 0
         self.playback_speed = 1.0
         self.process_file()
@@ -32,8 +38,8 @@ class MusicSession(object):
         self.release_callback = release_callback
 
     def process_file(self) -> (float, int, list):
-        with open("song.txt", "r") as macro_file:
-            lines = macro_file.read().split("\n")
+        with open(os.path.join(self.scripts_folder, self.script_file), 'r') as f:
+            lines = f.read().split("\n")
             time_offset_valid = False
             time_offset = 0
             self.playback_speed = float(lines[0].split("=")[1])
@@ -109,14 +115,14 @@ class MusicSession(object):
             MusicSession.is_playing = False
             self.stored_index = 0
 
-    def rewind(self, KeyboardEvent):
+    def rewind(self):
         if self.stored_index - 10 < 0:
             self.stored_index = 0
         else:
             self.stored_index -= 10
         print("Rewound to %.2f" % self.stored_index)
 
-    def skip(self, KeyboardEvent):
+    def skip(self):
         if self.stored_index + 10 > len(self.music[2]):
             MusicSession.is_playing = False
             stored_index = 0
@@ -125,68 +131,81 @@ class MusicSession(object):
         print("Skipped to %.2f" % self.stored_index)
 
 
-class Shared(object):
-    current_session: MusicSession = None
-    device_session: DeviceSession = None
-
-
-def on_del_press(event):
+def on_key_p_press(event):
     MusicSession.is_playing = not MusicSession.is_playing
 
-    if MusicSession.is_playing:
+    if MusicSession.is_playing and MusicSession.current_session is not None:
         print("Playing...")
-        Shared.current_session.play_next_note()
+        MusicSession.current_session.play_next_note()
+    elif MusicSession.current_session is None:
+        print("No song selected")
     else:
         print("Stopping...")
 
     return True
 
 
-def on_home_press(event):
-    Shared.current_session.rewind(event)
+def on_key_r_press(event):
+    MusicSession.current_session.rewind()
     return True
 
 
-def on_end_press(event):
-    Shared.current_session.skip(event)
+def on_key_a_press(event):
+    MusicSession.current_session.skip()
     return True
 
+
+def on_key_z_press(event):
+    on_key_p_press(event)
+    target = get_file_choice(MusicSession.songs_folder)
+    # if target file exists in scripts folder, use that
+    if not os.path.exists(os.path.join(MusicSession.scripts_folder, get_midi_file_name(target) + ".txt")):
+        process_midi(os.path.join(MusicSession.songs_folder, target))
+    MusicSession.current_session = MusicSession(get_midi_file_name(target) + ".txt")
 
 def floor_to_zero(i):
-    if i > 0:
-        return i
-    else:
-        return 0
+    return i if i > 0 else 0
 
 
-if __name__ == "__main__":
-    # receive command line arguments "--dry-run"
-    dry_run = False
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--dry-run":
-            print("Dry run mode enabled")
-            dry_run = True
-    music_sessions = [MusicSession("song.txt")]
-    Shared.current_session = music_sessions[0]
-
-    # Read ini file
-    config = configparser.ConfigParser()
-    config.read('device.ini')
-    device_address = config['Device']['Address']
-
-    if not dry_run:
-        Shared.device_session = DeviceSession(device_address)
-        Shared.current_session.set_callback(Shared.device_session.play_note, Shared.device_session.release_note)
-
-    keyboard.on_press_key(key_delete, on_del_press)
-    keyboard.on_press_key(key_home, on_home_press)
-    keyboard.on_press_key(key_end, on_end_press)
-
+def print_help():
     print()
     print("Controls")
     print("-" * 20)
-    print("Press DELETE to play/pause")
-    print("Press HOME to rewind")
-    print("Press END to advance")
-    while True:
-        input("Press Ctrl+C or close window to exit\n\n")
+    print("Press P to play/pause")
+    print("Press R to rewind")
+    print("Press A to advance")
+    print("Press Z to select a song")
+
+
+if __name__ == "__main__":
+    # Option parser from command line
+    parser = argparse.ArgumentParser(description='Song playback options')
+    parser.add_argument('--dry-run', action='store_true', help='Run without sending commands to the device')
+    parser.add_argument('-f', '--songs-folder', type=str, help="Path to the folder containing the songs, defaults to './songs'")
+
+    args = parser.parse_args()
+    dry_run = args.dry_run
+    songs_folder = args.songs_folder
+
+    if songs_folder is not None:
+        MusicSession.songs_folder = songs_folder
+
+    # Read ini file
+    config = configparser.ConfigParser()
+    config.read('driver/device.ini')
+    device_address = config['Device']['Address']
+
+    if not dry_run:
+        MusicSession.device_session = DeviceSession(device_address)
+        MusicSession.current_session.set_callback(MusicSession.device_session.play_note, MusicSession.device_session.release_note)
+
+    keyboard.on_press_key(key_p, on_key_p_press)
+    keyboard.on_press_key(key_r, on_key_r_press)
+    keyboard.on_press_key(key_a, on_key_a_press)
+    keyboard.on_press_key(key_z, on_key_z_press)
+
+    print_help()
+    on_key_z_press(None)
+    on_key_p_press(None)
+
+    time.sleep(100000)
