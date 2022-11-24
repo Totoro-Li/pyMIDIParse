@@ -22,6 +22,14 @@ class MusicSession(object):
     current_session = None
     device_session: DeviceSession = None
 
+    @staticmethod
+    def press_callback(note):
+        print("Pressed note", note)
+
+    @staticmethod
+    def release_callback(note):
+        print("Released note", note)
+
     def __init__(self, script_file):
         super(MusicSession, self).__init__()
         self.music = None
@@ -29,13 +37,8 @@ class MusicSession(object):
         self.stored_index = 0
         self.playback_speed = 1.0
         self.process_file()
-        self.press_callback = lambda note: print(f"Playing note {note}")
-        self.release_callback = lambda note: print(f"Releasing note {note}")
-        self.parse_info()
 
-    def set_callback(self, press_callback, release_callback):
-        self.press_callback = press_callback
-        self.release_callback = release_callback
+        self.parse_info()
 
     def process_file(self) -> (float, int, list):
         with open(os.path.join(self.scripts_folder, self.script_file), 'r') as f:
@@ -91,29 +94,33 @@ class MusicSession(object):
         return notes
 
     def play_next_note(self):
-        notes: list = self.music[2]
-        if MusicSession.is_playing and self.stored_index < len(self.music[2]):
-            note_info = notes[self.stored_index]
-            delay = floor_to_zero(note_info[0])
-            if note_info[1][0] == "~":
-                # release notes
-                # parse note_info[1][1:] as int
-                self.release_callback(int(note_info[1][1:]))
-            else:
-                # press notes
-                self.press_callback(int(note_info[1]))
+        try:
+            notes: list = self.music[2]
+            if MusicSession.is_playing and self.stored_index < len(self.music[2]):
+                note_info = notes[self.stored_index]
+                delay = floor_to_zero(note_info[0])
+                if note_info[1][0] == "~":
+                    # release notes
+                    # parse note_info[1][1:] as int
+                    self.release_callback(int(note_info[1][1:]))
+                else:
+                    # press notes
+                    self.press_callback(int(note_info[1]))
 
-            # if "~" not in note_info[1]:
-            #     print("%10.2f %15s" % (delay, note_info[1]))
-            # print("%10.2f %15s" % (delay/playback_speed,note_info[1]))
-            self.stored_index += 1
-            if delay == 0:
-                self.play_next_note()
-            else:
-                threading.Timer(delay / self.playback_speed, self.play_next_note).start()
-        elif self.stored_index > len(self.music[2]) - 1:
-            MusicSession.is_playing = False
-            self.stored_index = 0
+                # if "~" not in note_info[1]:
+                #     print("%10.2f %15s" % (delay, note_info[1]))
+                # print("%10.2f %15s" % (delay/playback_speed,note_info[1]))
+                self.stored_index += 1
+                if delay == 0:
+                    self.play_next_note()
+                else:
+                    threading.Timer(delay / self.playback_speed, self.play_next_note).start()
+            elif self.stored_index >= len(self.music[2]):
+                on_key_z_press(None)
+                self.stored_index = 0
+        except Exception as e:
+            print("Error in play_next_note", e)
+            on_key_z_press(None)
 
     def rewind(self):
         if self.stored_index - 10 < 0:
@@ -159,9 +166,17 @@ def on_key_z_press(event):
     on_key_p_press(event)
     target = get_file_choice(MusicSession.songs_folder)
     # if target file exists in scripts folder, use that
-    if not os.path.exists(os.path.join(MusicSession.scripts_folder, get_midi_file_name(target) + ".txt")):
-        process_midi(os.path.join(MusicSession.songs_folder, target))
+    try:
+        if not os.path.exists(os.path.join(MusicSession.scripts_folder, get_midi_file_name(target) + ".txt")):
+            print("Script file not found, generating...")
+            process_midi(os.path.join(MusicSession.songs_folder, target), MusicSession.scripts_folder)
+    except Exception as e:
+        print("Error during processing MIDI", e)
+        return True
+
     MusicSession.current_session = MusicSession(get_midi_file_name(target) + ".txt")
+    return True
+
 
 def floor_to_zero(i):
     return i if i > 0 else 0
@@ -190,14 +205,13 @@ if __name__ == "__main__":
     if songs_folder is not None:
         MusicSession.songs_folder = songs_folder
 
-    # Read ini file
-    config = configparser.ConfigParser()
-    config.read('driver/device.ini')
-    device_address = config['Device']['Address']
-
     if not dry_run:
+        # Read ini file
+        config = configparser.ConfigParser()
+        config.read('driver/device.ini')
+        device_address = config['Device']['Address']
         MusicSession.device_session = DeviceSession(device_address)
-        MusicSession.current_session.set_callback(MusicSession.device_session.play_note, MusicSession.device_session.release_note)
+        MusicSession.press_callback = MusicSession.device_session.play_note
 
     keyboard.on_press_key(key_p, on_key_p_press)
     keyboard.on_press_key(key_r, on_key_r_press)

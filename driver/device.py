@@ -138,8 +138,8 @@ class DeviceSession(object):
             device().touch_proxy.perform(multitouch_event)
         self.set_timer()
 
-    def get_note_group_and_relative(self, note) -> (int, int):
-        # 3, 12, 12, 12, 12, 12, 12, 12, 1
+    @staticmethod
+    def get_note_group_and_relative(note) -> (int, int):
         if note < 3:
             return 0, note
         elif note < 87:

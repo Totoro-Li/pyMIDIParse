@@ -317,7 +317,10 @@ def get_file_choice(directory):
     for i in range(len(mid_list)):
         print(i + 1, ":", mid_list[i])
 
-    choice = int(input(">"))
+    choice = input(">")
+    # Omit leading letters
+    while not (choice[0]).isdigit():
+        choice = choice[1:]
     print()
     choice_index = int(choice)
     return mid_list[choice_index - 1]
@@ -327,7 +330,7 @@ def get_midi_file_name(midi_file):
     return os.path.basename(midi_file).split(".")[0]
 
 
-def process_midi(midi_file):
+def process_midi(midi_file, scripts_folder):
     if not os.path.exists(midi_file):
         print(f"Error: file not found '{midi_file}'")
         return -1
@@ -343,8 +346,10 @@ def process_midi(midi_file):
         print("An error has occurred during processing::\n\n")
         return -1
 
+    if not os.path.exists(scripts_folder):
+        os.makedirs(scripts_folder)
     # Get father directory of current file
-    song_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", get_midi_file_name(midi_file) + ".txt")
+    song_file = os.path.join(scripts_folder, get_midi_file_name(midi_file) + ".txt")
     midi.save_song(song_file)
     print("\nSuccess, playback is ready to run")
     return 0
