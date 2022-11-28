@@ -16,7 +16,7 @@ key_z = 'z'
 
 
 class MusicSession(object):
-    is_playing = True
+    is_playing = False
     songs_folder = "songs"
     scripts_folder = "scripts"
     current_session = None
@@ -116,8 +116,8 @@ class MusicSession(object):
                 else:
                     threading.Timer(delay / self.playback_speed, self.play_next_note).start()
             elif self.stored_index >= len(self.music[2]):
+                self.current_session = None
                 on_key_z_press(None)
-                self.stored_index = 0
         except Exception as e:
             print("Error in play_next_note", e)
             on_key_z_press(None)
@@ -131,39 +131,45 @@ class MusicSession(object):
 
     def skip(self):
         if self.stored_index + 10 > len(self.music[2]):
-            MusicSession.is_playing = False
-            stored_index = 0
+            self.current_session = None
+            on_key_z_press(None)
         else:
             self.stored_index += 10
         print("Skipped to %.2f" % self.stored_index)
 
 
 def on_key_p_press(event):
+    if MusicSession.current_session is None:
+        print("No song selected")
+        return True
     MusicSession.is_playing = not MusicSession.is_playing
-
-    if MusicSession.is_playing and MusicSession.current_session is not None:
+    if MusicSession.is_playing:
         print("Playing...")
         MusicSession.current_session.play_next_note()
-    elif MusicSession.current_session is None:
-        print("No song selected")
     else:
         print("Stopping...")
-
     return True
 
 
 def on_key_r_press(event):
+    if MusicSession.current_session is None:
+        print("No song selected")
+        return True
     MusicSession.current_session.rewind()
     return True
 
 
 def on_key_a_press(event):
+    if MusicSession.current_session is None:
+        print("No song selected")
+        return True
     MusicSession.current_session.skip()
     return True
 
 
 def on_key_z_press(event):
-    on_key_p_press(event)
+    if MusicSession.is_playing:
+        on_key_p_press(None)
     target = get_file_choice(MusicSession.songs_folder)
     # if target file exists in scripts folder, use that
     try:

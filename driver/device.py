@@ -1,3 +1,5 @@
+import configparser
+
 from airtest.core.android.touch_methods.base_touch import *
 from airtest.core.api import *
 
@@ -19,7 +21,7 @@ class BlackKeyRelativeRatio(object):  # Up to down, left to right
     KEY3_HORIZONTAL = 0.5714
     KEY4_HORIZONTAL = 0.7180
     KEY5_HORIZONTAL = 0.8609
-    HORIZONTOAL = [KEY1_HORIZONTAL, KEY2_HORIZONTAL, KEY3_HORIZONTAL, KEY4_HORIZONTAL, KEY5_HORIZONTAL]
+    HORIZONTAL = [KEY1_HORIZONTAL, KEY2_HORIZONTAL, KEY3_HORIZONTAL, KEY4_HORIZONTAL, KEY5_HORIZONTAL]
 
 
 @Const
@@ -39,6 +41,7 @@ class PianoSetting(object):
     WHITE_KEY_INDEX = [0, 2, 4, 5, 7, 9, 11]
     BLACK_KEY_INDEX = [1, 3, 6, 8, 10]
     SAMPLING_INTERVAL = 0.02
+    NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 
 @Const
@@ -112,8 +115,8 @@ class DeviceSession(object):
         return self.device.get_current_resolution()
 
     def play_note(self, note):
-        # play midi sound
-        print(f"Playing note {note}")
+        # Print key to press and name of note
+        print(f"Playing key id {note}, note {self.get_note_by_key_index(note)}")
         # x, y = self.translate_note_to_real_coordinate(note)
         # touch((x, y), duration=0.1)
         self.down_event_to_perform.append(note)
@@ -123,19 +126,19 @@ class DeviceSession(object):
         pass
 
     def timer_callback(self):
-        multitouch_event = []
+        multi_touch_event = []
         if len(self.down_event_to_revoke) > 0:
             for op_id in self.down_event_to_revoke:
-                multitouch_event.append(UpEvent(op_id))
+                multi_touch_event.append(UpEvent(op_id))
             self.down_event_to_revoke = []
         if len(self.down_event_to_perform) > 0:
             for n in self.down_event_to_perform:
                 op_id = self.generate_id_incremental()
-                multitouch_event.append(DownEvent(self.ori_transformer(self.translate_note_to_real_coordinate(n)), op_id, 40))
+                multi_touch_event.append(DownEvent(self.ori_transformer(self.translate_note_to_real_coordinate(n)), op_id, 40))
                 self.down_event_to_revoke.append(op_id)
             self.down_event_to_perform = []
-        if len(multitouch_event) > 0:
-            device().touch_proxy.perform(multitouch_event)
+        if len(multi_touch_event) > 0:
+            device().touch_proxy.perform(multi_touch_event)
         self.set_timer()
 
     @staticmethod
@@ -147,6 +150,11 @@ class DeviceSession(object):
         else:
             return 8, 0
 
+    @staticmethod
+    def get_note_by_key_index(key_index: int) -> str:
+        group, relative = DeviceSession.get_note_group_and_relative(key_index)
+        return CONST.PianoSetting.NOTE_NAMES[relative] + str(group)
+
     def get_note_position(self, note):
         group, relative = self.get_note_group_and_relative(note)
         if relative in CONST.PianoSetting.WHITE_KEY_INDEX:
@@ -155,7 +163,7 @@ class DeviceSession(object):
             y = self.piano_height * CONST.WhiteKeyRelativeRatio.VERTICAL
         else:
             # Black key
-            x = self.octaves_start_end_pixel[group][0] + (self.octaves_start_end_pixel[group][1] - self.octaves_start_end_pixel[group][0]) * CONST.BlackKeyRelativeRatio.HORIZONTOAL[CONST.PianoSetting.BLACK_KEY_INDEX.index(relative)]
+            x = self.octaves_start_end_pixel[group][0] + (self.octaves_start_end_pixel[group][1] - self.octaves_start_end_pixel[group][0]) * CONST.BlackKeyRelativeRatio.HORIZONTAL[CONST.PianoSetting.BLACK_KEY_INDEX.index(relative)]
             y = self.piano_height * CONST.BlackKeyRelativeRatio.VERTICAL
         return x, y
 
@@ -165,7 +173,10 @@ class DeviceSession(object):
 
 
 if __name__ == '__main__':
-    session = DeviceSession("DVE0220407001089")
+    config = configparser.ConfigParser()
+    config.read('driver/device.ini')
+    device_address = config['Device']['Address']
+    session = DeviceSession(device_address)
     while True:
         key = input("Enter note to play: ")
         touch((session.translate_note_to_real_coordinate(int(key))))
