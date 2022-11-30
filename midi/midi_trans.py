@@ -167,10 +167,10 @@ class MidiFile:
     def readVoiceEvent(self, delta_t):
         if self.bytes[self.itr] < 0x80 and self.running_status_set:
             midi_type = self.running_status
-            # channel = midi_type & 0x0F
+            channel = midi_type & 0x0F
         else:
             midi_type = self.bytes[self.itr]
-            # channel = self.bytes[self.itr] & 0x0F
+            channel = self.bytes[self.itr] & 0x0F
             if 0x80 <= midi_type <= 0xF7:
                 self.log("RUNNING STATUS SET:", hex(midi_type))
                 self.running_status = midi_type

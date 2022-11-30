@@ -6,9 +6,9 @@ def midi_note_to_piano_key(note):
     return note - 21
 
 
+def sort_notes_by_pitch(notes):
+    return sorted(notes, key=lambda note: note[1])
+
+
 if __name__ == "__main__":
-    mid = mido.MidiFile("../songs/Chopin - Nocturne op.9 No.2.mid")
-    scores = []  # (time, piano converted note)
-    for msg in mid.play():
-        if msg.type == "note_on":
-            print((msg.time, midi_note_to_piano_key(msg.note)))
+    mid = mido.MidiFile("../songs/Vivaldis_Spring_from_the_Four_Seasons_Piano_Transcription.mid")

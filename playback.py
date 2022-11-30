@@ -13,6 +13,8 @@ key_p = 'p'
 key_r = 'r'
 key_a = 'a'
 key_z = 'z'
+key_dot = '.'
+key_comma = ','
 
 
 class MusicSession(object):
@@ -36,6 +38,7 @@ class MusicSession(object):
         self.script_file = script_file
         self.stored_index = 0
         self.playback_speed = 1.0
+        self.playback_speed_multiplier = 1.0
         self.process_file()
 
         self.parse_info()
@@ -92,6 +95,20 @@ class MusicSession(object):
         notes[len(notes) - 1][0] = 1.00
         self.music[2] = notes
         return notes
+
+    def adjust_playback_speed_multiplier(self, multiplier):
+        if not 0 < multiplier < 1:
+            print("Invalid multiplier")
+            return
+        self.playback_speed_multiplier = multiplier
+        self.playback_speed *= multiplier
+        print("Playback speed is now %.2f" % self.playback_speed)
+
+    def slow_down(self):
+        self.adjust_playback_speed_multiplier(self.playback_speed_multiplier - 0.1)
+
+    def speed_up(self):
+        self.adjust_playback_speed_multiplier(self.playback_speed_multiplier + 0.1)
 
     def play_next_note(self):
         try:
@@ -151,17 +168,22 @@ def on_key_p_press(event):
     return True
 
 
-def on_key_r_press(event):
+def no_music_session():
     if MusicSession.current_session is None:
         print("No song selected")
+        return True
+    return False
+
+
+def on_key_r_press(event):
+    if no_music_session():
         return True
     MusicSession.current_session.rewind()
     return True
 
 
 def on_key_a_press(event):
-    if MusicSession.current_session is None:
-        print("No song selected")
+    if no_music_session():
         return True
     MusicSession.current_session.skip()
     return True
@@ -181,6 +203,20 @@ def on_key_z_press(event):
         return True
 
     MusicSession.current_session = MusicSession(get_midi_file_name(target) + ".txt")
+    return True
+
+
+def on_key_comma_press(event):
+    if no_music_session():
+        return True
+    MusicSession.current_session.slow_down()
+    return True
+
+
+def on_key_dot_press(event):
+    if no_music_session():
+        return True
+    MusicSession.current_session.speed_up()
     return True
 
 
@@ -223,6 +259,8 @@ if __name__ == "__main__":
     keyboard.on_press_key(key_r, on_key_r_press)
     keyboard.on_press_key(key_a, on_key_a_press)
     keyboard.on_press_key(key_z, on_key_z_press)
+    keyboard.on_press_key(key_comma, on_key_comma_press)
+    keyboard.on_press_key(key_dot, on_key_dot_press)
 
     print_help()
     on_key_z_press(None)
