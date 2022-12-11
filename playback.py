@@ -39,6 +39,7 @@ class MusicSession(object):
         self.stored_index = 0
         self.playback_speed = 1.0
         self.playback_speed_multiplier = 1.0
+        self.playback_speed_temp = 1.0
         self.process_file()
 
         self.parse_info()
@@ -101,7 +102,7 @@ class MusicSession(object):
             print("Invalid multiplier")
             return
         self.playback_speed_multiplier = multiplier
-        self.playback_speed *= multiplier
+        self.playback_speed_temp = self.playback_speed * self.playback_speed_multiplier
         print("Playback speed is now %.2f" % self.playback_speed)
 
     def slow_down(self):
@@ -131,7 +132,7 @@ class MusicSession(object):
                 if delay == 0:
                     self.play_next_note()
                 else:
-                    threading.Timer(delay / self.playback_speed, self.play_next_note).start()
+                    threading.Timer(delay / self.playback_speed_temp, self.play_next_note).start()
             elif self.stored_index >= len(self.music[2]):
                 self.current_session = None
                 on_key_z_press(None)
