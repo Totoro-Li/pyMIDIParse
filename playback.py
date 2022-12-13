@@ -98,7 +98,7 @@ class MusicSession(object):
         return notes
 
     def adjust_playback_speed_multiplier(self, multiplier):
-        if not 0 < multiplier < 1:
+        if multiplier <= 0.0:
             print("Invalid multiplier")
             return
         self.playback_speed_multiplier = multiplier
